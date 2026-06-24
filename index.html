@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio Brain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;680;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" id="brand-mark">J</div>
+      <div>
+        <div class="brand-name" id="brand-name">Studio Brain</div>
+        <div class="brand-sub" id="brand-sub">JAB Design</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Workspace</div>
+      <button class="nav-item active" data-route="dashboard"><span class="ico" data-i="grid"></span> Dashboard</button>
+      <button class="nav-item" data-route="knowledge"><span class="ico" data-i="brain"></span> Knowledge base</button>
+      <button class="nav-item" data-route="connectors"><span class="ico" data-i="plug"></span> Connectors</button>
+      <div class="nav-label">Automation</div>
+      <button class="nav-item" data-route="agents"><span class="ico" data-i="robot"></span> Agents</button>
+      <button class="nav-item" data-route="workflows"><span class="ico" data-i="flow"></span> Workflows</button>
+      <button class="nav-item" data-route="approvals"><span class="ico" data-i="inbox"></span> Approvals <span class="nav-badge" id="approvals-badge">3</span></button>
+    </nav>
+
+    <div class="side-foot">
+      <div class="side-user">
+        <div class="avatar" id="owner-init">JT</div>
+        <div>
+          <div style="color:#e8ebf0;font-size:13px;font-weight:500"><span id="owner-name">Justin</span></div>
+          <small id="owner-domain">jab.sg</small>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="workspace">
+        <span class="ws-dot" id="ws-dot">J</span>
+        <span id="ws-name">JAB Design</span>
+        <span class="ico" data-i="chevron" style="width:15px;height:15px;color:var(--faint)"></span>
+      </div>
+      <span class="pill live"><span class="dot"></span> Brain synced</span>
+      <div class="topbar-spacer"></div>
+      <button class="btn btn-sm"><span class="ico" data-i="shield"></span> Read-only & approved</button>
+    </header>
+
+    <main class="view" id="view"></main>
+  </div>
+</div>
+
+<div class="drawer-scrim" id="scrim"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3 id="drawer-title">Panel</h3>
+    <button class="icon-btn" data-close-drawer><span class="ico" data-i="x"></span></button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-foot" id="drawer-foot"></div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+<script>
+  /* paint nav icons (app.js owns the rest) */
+  document.querySelectorAll('[data-i]').forEach(function(el){
+    var n = el.getAttribute('data-i');
+    if (window.I && window.I[n] !== undefined) {
+      el.outerHTML = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + window.I[n] + '</svg>';
+    }
+  });
+</script>
+</body>
+</html>
