@@ -4,90 +4,316 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Studio Brain — live agent demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{ --wa-bg:#0b141a; --wa-head:#202c33; --wa-in:#202c33; --wa-out:#005c4b; --txt:#e9edef; --mut:#8696a0; --tick:#53bdeb; --accent:#22c35e; }
-  *{box-sizing:border-box}
-  body{margin:0;background:#0a0a0c;color:var(--txt);font:15px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,Helvetica,Arial;display:flex;flex-direction:column;align-items:center;min-height:100vh;gap:14px;padding:20px 10px}
-  .cap{color:#9aa7b2;font-size:13px;text-align:center;max-width:380px}
-  .cap b{color:#fff}
-  .phone{width:380px;max-width:96vw;height:720px;background:var(--wa-bg);border-radius:30px;border:10px solid #1b1b1f;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative}
-  .head{background:var(--wa-head);display:flex;align-items:center;gap:10px;padding:12px 14px}
-  .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#22c35e,#0a7);display:flex;align-items:center;justify-content:center;font-weight:800;color:#04210d}
-  .head .nm{font-weight:600;font-size:15px}
-  .head .st{color:var(--accent);font-size:12px}
-  .head .ch{margin-left:auto;font-size:11px;color:var(--mut);border:1px solid #2a3942;border-radius:20px;padding:3px 8px}
-  .chat{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px;background-image:linear-gradient(rgba(11,20,26,.96),rgba(11,20,26,.96))}
-  .row{display:flex}
-  .row.out{justify-content:flex-end}
-  .bub{max-width:78%;padding:7px 10px 5px;border-radius:10px;font-size:14.5px;white-space:pre-wrap;position:relative;animation:pop .25s ease}
-  .in .bub{background:var(--wa-in);border-top-left-radius:3px}
-  .out .bub{background:var(--wa-out);border-top-right-radius:3px}
-  .meta{display:block;text-align:right;font-size:10.5px;color:var(--mut);margin-top:2px}
+  :root{
+    /* app palette — matches styles.css */
+    --ink:#0f1722; --muted:#5b6675; --faint:#8c95a3; --line:#e7e9ee; --line-soft:#f0f2f5;
+    --bg:#f6f7f9; --surface:#ffffff; --accent:#0e9f6e; --accent-deep:#0a7a54; --accent-wash:#e7f6ef;
+    --blue:#2f6fed; --blue-wash:#e8effd; --amber:#c4881a;
+    --radius:12px; --radius-sm:8px; --radius-lg:18px;
+    --shadow:0 1px 2px rgba(15,23,34,.04), 0 4px 16px rgba(15,23,34,.05);
+    --shadow-lift:0 18px 50px rgba(15,23,34,.16);
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    /* whatsapp */
+    --wa-bg:#0b141a; --wa-head:#1f2c33; --wa-in:#202c33; --wa-out:#005c4b; --wa-txt:#e9edef; --wa-mut:#8696a0; --tick:#53bdeb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);background:
+        radial-gradient(1200px 600px at 75% -10%, #eef6f2 0%, transparent 60%),
+        radial-gradient(900px 500px at 0% 110%, #eef1fb 0%, transparent 55%),
+        var(--bg);
+        color:var(--ink);-webkit-font-smoothing:antialiased;overflow:hidden;display:grid;place-items:center;min-height:100vh}
+
+  /* ---------- stage ---------- */
+  .stage{position:relative;width:min(1080px,96vw);height:min(680px,92vh);border-radius:24px;overflow:hidden;
+         background:var(--surface);box-shadow:var(--shadow-lift);border:1px solid var(--line)}
+
+  /* progress rail */
+  .rail{position:absolute;top:0;left:0;right:0;height:3px;background:transparent;z-index:60}
+  .rail i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#16c98a);transition:width .4s linear}
+
+  /* ===== APP SHELL (always present, the phone sits on top in act 1) ===== */
+  .app{position:absolute;inset:0;display:grid;grid-template-columns:236px 1fr;opacity:0;transform:scale(1.03);
+       transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+  .app.show{opacity:1;transform:none}
+
+  .side{background:var(--ink);color:#aeb6c2;padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+  .brand{display:flex;align-items:center;gap:11px;padding:2px 6px 18px}
+  .bmark{width:34px;height:34px;border-radius:9px;background:linear-gradient(140deg,var(--accent),#16c98a);
+         display:grid;place-items:center;color:#04130d;font-weight:700;font-size:17px;box-shadow:0 4px 14px rgba(14,159,110,.35)}
+  .bname{color:#fff;font-weight:600;font-size:15px}.bsub{color:#7c8696;font-size:12px}
+  .nlabel{color:#5f6a7a;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:16px 6px 6px}
+  .nitem{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:#aeb6c2;font-size:13.5px;font-weight:500}
+  .nitem.active{background:#1b2734;color:#fff}
+  .nitem .nb{margin-left:auto;background:var(--accent);color:#04130d;font-size:11px;font-weight:700;border-radius:20px;padding:1px 7px}
+  .ndot{width:7px;height:7px;border-radius:3px;background:#48566a}.nitem.active .ndot{background:var(--accent)}
+
+  .main{display:flex;flex-direction:column;min-width:0}
+  .top{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--surface)}
+  .ws{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+  .wsdot{width:22px;height:22px;border-radius:6px;background:linear-gradient(140deg,var(--accent),#16c98a);display:grid;place-items:center;color:#04130d;font-weight:700;font-size:12px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:20px;background:var(--accent-wash);color:var(--accent-deep)}
+  .pill .lv{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(14,159,110,.5);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(14,159,110,.5)}70%{box-shadow:0 0 0 7px rgba(14,159,110,0)}100%{box-shadow:0 0 0 0 rgba(14,159,110,0)}}
+  .spacer{flex:1}
+  .ro{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+
+  .view{flex:1;padding:22px;overflow:auto;background:linear-gradient(var(--bg),var(--bg))}
+  .vhead{font-size:19px;font-weight:650;letter-spacing:-.01em}
+  .vsub{color:var(--muted);font-size:13px;margin-top:2px}
+
+  /* approval card */
+  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-top:18px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .chead{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--line-soft)}
+  .chan{font-size:11px;font-weight:600;color:var(--accent-deep);background:var(--accent-wash);padding:3px 8px;border-radius:6px}
+  .from{font-weight:600;font-size:13.5px}.when{color:var(--faint);font-size:12px;margin-left:auto}
+  .cbody{padding:15px}
+  .q{color:var(--muted);font-size:13px;background:var(--line-soft);border-radius:10px;padding:11px 13px;margin-bottom:14px}
+  .draftlabel{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+  .draft{font-size:14px;line-height:1.55;color:var(--ink);min-height:84px}
+  .cursor{display:inline-block;width:7px;height:15px;background:var(--accent);margin-left:1px;vertical-align:-2px;animation:bl .8s steps(1) infinite}
+  @keyframes bl{50%{opacity:0}}
+  .cfoot{display:flex;align-items:center;gap:10px;padding:13px 15px;border-top:1px solid var(--line-soft);background:#fcfdfe}
+  .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;font-weight:550;padding:9px 14px;border-radius:9px;display:inline-flex;align-items:center;gap:7px;transition:.2s}
+  .btn.ghost{color:var(--muted)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(14,159,110,.3)}
+  .btn.primary.go{transform:scale(.97);filter:brightness(.95)}
+  .btn[disabled]{opacity:.5}
+  .grew{font-size:12px;color:var(--faint);margin-left:auto}
+
+  /* right column: agent activity */
+  .act{padding:15px}
+  .actitem{display:flex;gap:11px;padding:9px 0;opacity:0;transform:translateY(6px);transition:.45s}
+  .actitem.in{opacity:1;transform:none}
+  .actitem:not(:last-child){border-bottom:1px solid var(--line-soft)}
+  .ai{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:13px;flex:none;background:var(--accent-wash)}
+  .at{font-size:13px;font-weight:550}.as{font-size:12px;color:var(--muted)}
+  .stepmark{color:var(--accent);font-weight:700}
+
+  /* sending overlay on the card */
+  .sendwrap{position:relative}
+  .sentbadge{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+             background:rgba(255,255,255,.92);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:.4s}
+  .sentbadge.show{opacity:1}
+  .checkring{width:62px;height:62px;border-radius:50%;background:var(--accent-wash);display:grid;place-items:center}
+  .checkring svg{width:34px;height:34px;stroke:var(--accent);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;
+                 stroke-dasharray:48;stroke-dashoffset:48}
+  .sentbadge.show .checkring svg{animation:draw .5s .15s forwards ease}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .senttxt{font-weight:600;font-size:15px}.sentsub{color:var(--muted);font-size:13px}
+
+  /* ===== PHONE (act 1) ===== */
+  .phonewrap{position:absolute;inset:0;display:grid;place-items:center;z-index:40;transition:transform .9s cubic-bezier(.7,0,.2,1),opacity .6s ease}
+  .phonewrap.dock{transform:translate(36%,30%) scale(.42);opacity:0}
+  .phone{width:330px;height:600px;background:var(--wa-bg);border-radius:34px;border:11px solid #11161b;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 70px rgba(0,0,0,.45);position:relative}
+  .wahead{background:var(--wa-head);display:flex;align-items:center;gap:10px;padding:13px 14px}
+  .waav{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#22c35e,#0a7);display:grid;place-items:center;font-weight:800;color:#04210d;font-size:13px}
+  .wanm{color:var(--wa-txt);font-weight:600;font-size:14px}.wast{color:#22c35e;font-size:11.5px}
+  .wach{margin-left:auto;font-size:10.5px;color:var(--wa-mut);border:1px solid #2a3942;border-radius:20px;padding:3px 9px}
+  .wachat{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex}.row.out{justify-content:flex-end}
+  .bub{max-width:80%;padding:7px 10px 5px;border-radius:11px;font-size:14px;color:var(--wa-txt);white-space:pre-wrap;animation:pop .25s ease}
+  .in .bub{background:var(--wa-in);border-top-left-radius:3px}.out .bub{background:var(--wa-out);border-top-right-radius:3px}
+  .bmeta{display:block;text-align:right;font-size:10px;color:var(--wa-mut);margin-top:2px}
   .tick{color:var(--tick)}
   @keyframes pop{from{transform:translateY(8px) scale(.97);opacity:0}to{transform:none;opacity:1}}
-  .pill{align-self:center;background:#182a22;color:#9fe7be;font-size:11.5px;padding:4px 11px;border-radius:20px;border:1px solid #224733;animation:pop .25s}
   .typing{display:inline-flex;gap:3px;align-items:center}
-  .typing i{width:6px;height:6px;border-radius:50%;background:var(--mut);animation:bl 1s infinite}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--wa-mut);animation:tb 1s infinite}
   .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
-  @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
-  .agentbar{background:#111b15;border-top:1px solid #1f3a2a;padding:8px 12px;font-size:12px;color:#9fe7be;display:flex;align-items:center;gap:8px;min-height:36px}
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  @keyframes tb{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  .wabar{background:#0e1620;border-top:1px solid #1f3a2a;padding:9px 13px;font-size:12px;color:#9fe7be;display:flex;align-items:center;gap:8px;min-height:38px}
+  .wadot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+
+  /* caption chip */
+  .cap{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:55;background:rgba(15,23,34,.86);color:#fff;
+       font-size:12.5px;padding:8px 15px;border-radius:30px;backdrop-filter:blur(6px);box-shadow:0 6px 20px rgba(0,0,0,.25);
+       display:flex;align-items:center;gap:9px;white-space:nowrap;transition:.4s}
+  .cap b{color:#7ff0bd;font-weight:600}
+  .replay{position:absolute;top:14px;right:16px;z-index:60;font-size:12px;color:var(--muted);background:rgba(255,255,255,.8);
+          border:1px solid var(--line);border-radius:8px;padding:6px 11px;display:none;align-items:center;gap:6px}
+  .replay.show{display:inline-flex}
 </style>
 </head>
 <body>
-  <div class="cap"><b>Studio Brain</b> — an enquiry comes in on WhatsApp, the agent reads JAB's brain and replies in seconds. You approve before it sends.</div>
-  <div class="phone">
-    <div class="head">
-      <div class="av">JB</div>
-      <div><div class="nm" id="who">JAB Design</div><div class="st" id="status">Studio Brain · online</div></div>
-      <div class="ch" id="chan">WhatsApp</div>
+<div class="stage" id="stage">
+  <div class="rail"><i id="rail"></i></div>
+  <button class="replay" id="replay">↻ Replay</button>
+
+  <!-- ===== APP (act 2) ===== -->
+  <div class="app" id="app">
+    <aside class="side">
+      <div class="brand"><div class="bmark">J</div><div><div class="bname">Studio Brain</div><div class="bsub">JAB Design</div></div></div>
+      <div class="nlabel">Workspace</div>
+      <div class="nitem"><span class="ndot"></span>Dashboard</div>
+      <div class="nitem"><span class="ndot"></span>Knowledge base</div>
+      <div class="nitem"><span class="ndot"></span>Connectors</div>
+      <div class="nlabel">Automation</div>
+      <div class="nitem"><span class="ndot"></span>Agents</div>
+      <div class="nitem active"><span class="ndot"></span>Approvals<span class="nb" id="badge">1</span></div>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <div class="ws"><span class="wsdot">J</span>JAB Design</div>
+        <span class="pill"><span class="lv"></span>Brain synced</span>
+        <div class="spacer"></div>
+        <div class="ro">🛡 Read-only &amp; approved</div>
+      </header>
+      <div class="view">
+        <div class="vhead">Approvals</div>
+        <div class="vsub">Your agent drafted a reply from a live WhatsApp enquiry — approve before it sends.</div>
+        <div class="grid">
+          <!-- draft card -->
+          <div class="card sendwrap">
+            <div class="chead">
+              <span class="chan">WhatsApp</span>
+              <span class="from" id="fromName">Rachel</span>
+              <span class="when">just now</span>
+            </div>
+            <div class="cbody">
+              <div class="q" id="qText">"…"</div>
+              <div class="draftlabel">✍️ Drafted in JAB's voice <span style="color:var(--accent)">· grounded in brand brain</span></div>
+              <div class="draft" id="draftText"></div>
+            </div>
+            <div class="cfoot">
+              <button class="btn ghost" disabled>Edit</button>
+              <button class="btn primary" id="approveBtn" disabled>Approve &amp; send</button>
+              <span class="grew" id="grew">reading 14 brand sources…</span>
+            </div>
+            <div class="sentbadge" id="sentBadge">
+              <div class="checkring"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div class="senttxt">Sent on WhatsApp</div>
+              <div class="sentsub" id="sentSub">Replied in 9 seconds · logged to brain</div>
+            </div>
+          </div>
+          <!-- activity -->
+          <div class="card">
+            <div class="chead"><span class="from">Agent activity</span><span class="when" id="actclock">live</span></div>
+            <div class="act" id="act"></div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="chat" id="chat"></div>
-    <div class="agentbar"><span class="dot"></span><span id="agent">Studio Brain agent active</span></div>
   </div>
 
-<script>
-const SCENARIOS = [
- { who:"Rachel · new enquiry", chan:"WhatsApp",
-   incoming:"Hi! love your SG50 work 🙌 we're opening our 2nd cafe and the branding feels dated. do you do a refresh + new packaging? rough cost?",
-   reply:"hey Rachel, congrats on cafe number two 🥊 a refresh with packaging sits right in our corner. rough guide it usually runs around 6 to 8 weeks and scales with scope. easiest is a quick 15-min consult so we can see the space. want me to set one up?" },
- { who:"James · Vertex Property", chan:"WhatsApp",
-   incoming:"We have a condo launch in October, need a full campaign + microsite. can JAB take this on?",
-   reply:"hi James, a launch like this is exactly what we're built for, brand, collaterals and microsite pulling in one direction. we'd lock the story first then build outward, working the schedule backward from your October date. happy to walk you through it on a call this week." },
-];
+  <!-- ===== PHONE (act 1) ===== -->
+  <div class="phonewrap" id="phonewrap">
+    <div class="phone">
+      <div class="wahead">
+        <div class="waav">JB</div>
+        <div><div class="wanm">JAB Design</div><div class="wast" id="wast">online</div></div>
+        <div class="wach">WhatsApp</div>
+      </div>
+      <div class="wachat" id="wachat"></div>
+      <div class="wabar"><span class="wadot"></span><span id="wabar">Studio Brain agent active</span></div>
+    </div>
+  </div>
 
-const chat=document.getElementById('chat'), agent=document.getElementById('agent');
-const who=document.getElementById('who'), chan=document.getElementById('chan'), status=document.getElementById('status');
+  <!-- caption -->
+  <div class="cap" id="cap"><b>Studio Brain</b> · an enquiry lands on WhatsApp…</div>
+</div>
+
+<script>
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const $=id=>document.getElementById(id);
 function now(){const d=new Date();return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');}
-function add(side,html){const r=document.createElement('div');r.className='row '+side;r.innerHTML='<div class="bub">'+html+'</div>';chat.appendChild(r);chat.scrollTop=chat.scrollHeight;return r;}
-function pill(t){const p=document.createElement('div');p.className='pill';p.textContent=t;chat.appendChild(p);chat.scrollTop=chat.scrollHeight;}
-async function typeOut(bub,text){bub.querySelector('.bub').innerHTML='';const el=bub.querySelector('.bub');for(let i=0;i<text.length;i++){el.textContent+=text[i];chat.scrollTop=chat.scrollHeight;await sleep(12+Math.random()*22);}el.innerHTML=el.textContent+'<span class="meta">'+now()+' <span class="tick">✓✓</span></span>';}
+function setRail(p){$('rail').style.width=p+'%';}
+function setCap(html){$('cap').style.opacity=0;setTimeout(()=>{$('cap').innerHTML=html;$('cap').style.opacity=1;},250);}
+
+// the enquiry used end-to-end (phone -> app)
+const ENQ={
+  from:"Rachel",
+  channel:"WhatsApp",
+  incoming:"Hi! love your SG50 work 🙌 we're opening our 2nd cafe and the branding feels dated. do you do a refresh + new packaging? rough cost?",
+  reply:"hey Rachel, congrats on cafe number two 🥊 a refresh with packaging sits right in our corner. rough guide it usually runs around 6 to 8 weeks and scales with scope. easiest is a quick 15-min consult so we can see the space — want me to set one up?"
+};
+
+// phone helpers
+function waAdd(side,html){const r=document.createElement('div');r.className='row '+side;r.innerHTML='<div class="bub">'+html+'</div>';$('wachat').appendChild(r);$('wachat').scrollTop=1e6;return r;}
+
+// activity feed
+const ACTS=[
+  {ic:'⚡',t:'Enquiry received',s:'WhatsApp · routed to Studio Brain'},
+  {ic:'🧠',t:'Read brand brain',s:'voice, pricing, past work · 14 sources'},
+  {ic:'✍️',t:'Drafted reply',s:"in JAB's tone · awaiting your approval"},
+  {ic:'✅',t:'Approved by you',s:'sent on WhatsApp · 9s total'},
+];
+function pushAct(i){const a=ACTS[i];const el=document.createElement('div');el.className='actitem';
+  el.innerHTML=`<div class="ai">${a.ic}</div><div><div class="at">${a.t}</div><div class="as">${a.s}</div></div>`;
+  $('act').appendChild(el);requestAnimationFrame(()=>el.classList.add('in'));}
+
+async function typeInto(el,text,sp=16){el.textContent='';for(let i=0;i<text.length;i++){el.textContent+=text[i];await sleep(sp+Math.random()*18);}}
+async function typeDraft(el,text){el.innerHTML='';let s='';for(let i=0;i<text.length;i++){s+=text[i];el.innerHTML=s+'<span class="cursor"></span>';$('act')&&($('act').scrollTop=1e6);await sleep(14+Math.random()*16);}el.textContent=text;}
+
+function reset(){
+  $('wachat').innerHTML='';$('act').innerHTML='';
+  $('app').classList.remove('show');$('phonewrap').classList.remove('dock');
+  $('draftText').innerHTML='';$('sentBadge').classList.remove('show');
+  $('approveBtn').classList.remove('go');$('badge').textContent='1';
+  $('replay').classList.remove('show');setRail(0);
+}
 
 async function run(){
-  while(true){
-   for(const s of SCENARIOS){
-     chat.innerHTML=''; who.textContent='JAB Design'; chan.textContent=s.chan;
-     // incoming
-     status.textContent=s.who;
-     const t=add('in','<span class="typing"><i></i><i></i><i></i></span>'); await sleep(1100);
-     t.querySelector('.bub').innerHTML=s.incoming+'<span class="meta">'+now()+'</span>'; await sleep(900);
-     // agent routing
-     agent.textContent='⚡ enquiry received — routing to Studio Brain';
-     await sleep(900);
-     agent.textContent="🧠 reading JAB's brand voice + past work";
-     await sleep(1100);
-     agent.textContent='✍️ drafting reply…';
-     pill('Studio Brain drafted a reply · waiting for your approval');
-     await sleep(700);
-     // reply types out
-     const out=add('out','<span class="typing"><i></i><i></i><i></i></span>'); await sleep(700);
-     await typeOut(out,s.reply);
-     agent.textContent='✅ approved by you → sent on '+s.chan;
-     await sleep(2600);
-   }
-  }
+  reset();
+  // ---------- ACT 1: WhatsApp ----------
+  setCap('<b>Studio Brain</b> · an enquiry lands on WhatsApp…');
+  $('wabar').textContent='Studio Brain agent active';
+  $('wast').textContent=ENQ.from+' · typing…';
+  setRail(8);
+  const t=waAdd('in','<span class="typing"><i></i><i></i><i></i></span>');await sleep(1200);
+  t.querySelector('.bub').innerHTML=ENQ.incoming+'<span class="bmeta">'+now()+'</span>';
+  $('wast').textContent='online';setRail(20);await sleep(900);
+
+  $('wabar').textContent='⚡ enquiry received — routing to Studio Brain';await sleep(950);
+  $('wabar').textContent="🧠 reading JAB's brand voice + past work";setRail(34);await sleep(1100);
+  $('wabar').textContent='✍️ drafting a reply…';await sleep(700);
+
+  // ---------- TRANSITION: dock phone, reveal app ----------
+  setCap('…the agent drafts inside <b>Studio Brain</b> — you approve before it sends');
+  $('app').classList.add('show');
+  $('phonewrap').classList.add('dock');
+  setRail(50);
+  await sleep(900);
+
+  // ---------- ACT 2: the app ----------
+  $('fromName').textContent=ENQ.from;
+  $('qText').textContent='“'+ENQ.incoming+'”';
+  // activity + grounding count-up
+  pushAct(0);await sleep(500);
+  pushAct(1);
+  let g=0;const gt=setInterval(()=>{g+=1;$('grew').textContent='reading '+Math.min(14,g)+' brand sources…';if(g>=14)clearInterval(gt);},70);
+  await sleep(1200);
+  pushAct(2);
+  $('grew').textContent='grounded in 14 sources';
+  // draft types into the card
+  await typeDraft($('draftText'),ENQ.reply);
+  $('approveBtn').removeAttribute('disabled');
+  setRail(72);
+  setCap('Reply ready — <b>one click to approve</b>');
+  await sleep(1100);
+
+  // approve + send
+  $('approveBtn').classList.add('go');
+  $('approveBtn').innerHTML='Sending…';
+  await sleep(750);
+  pushAct(3);
+  $('badge').textContent='0';
+  $('sentBadge').classList.add('show');
+  $('approveBtn').innerHTML='✓ Sent';
+  setRail(100);
+  setCap('<b>Sent on WhatsApp in 9 seconds</b> · every reply, on-brand, approved by you');
+  await sleep(3200);
+
+  $('replay').classList.add('show');
+  await sleep(1800);
+  run();
 }
+$('replay').addEventListener('click',()=>{$('replay').classList.remove('show');run();});
 run();
 </script>
 </body>
