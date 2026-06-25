@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Studio Brain — how it works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0f1722; --muted:#5b6675; --faint:#8c95a3; --line:#e7e9ee; --line-soft:#f0f2f5;
+    --bg:#f6f7f9; --surface:#ffffff; --accent:#0e9f6e; --accent-deep:#0a7a54; --accent-wash:#e7f6ef;
+    --blue:#2f6fed; --blue-wash:#e8effd; --amber:#c4881a; --amber-wash:#fbf1dd; --violet:#6d54d6; --violet-wash:#eeeafb;
+    --wa:#22c35e; --gm:#ea4335;
+    --radius:12px; --radius-sm:8px; --radius-lg:18px;
+    --shadow:0 1px 2px rgba(15,23,34,.04),0 4px 16px rgba(15,23,34,.05);
+    --shadow-lift:0 18px 50px rgba(15,23,34,.16);
+    --ease:cubic-bezier(.2,.8,.2,1);
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;overflow:hidden;
+       display:grid;place-items:center;min-height:100vh;
+       background:radial-gradient(1100px 560px at 78% -12%,#eef6f2,transparent 60%),
+                  radial-gradient(820px 460px at -5% 112%,#eceefb,transparent 55%),var(--bg)}
+
+  .stage{position:relative;width:min(1120px,96vw);height:min(700px,93vh);border-radius:24px;overflow:hidden;
+         background:var(--surface);box-shadow:var(--shadow-lift);border:1px solid var(--line);
+         display:grid;grid-template-columns:240px 1fr}
+
+  .rail{position:absolute;top:0;left:0;right:0;height:3px;z-index:60}
+  .rail i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#16c98a);transition:width .5s linear}
+  .replay{position:absolute;top:13px;right:15px;z-index:70;font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);
+          border:1px solid var(--line);border-radius:8px;padding:6px 11px;display:none;align-items:center;gap:6px;cursor:pointer}
+  .replay.show{display:inline-flex}
+
+  /* ---------- sidebar ---------- */
+  .side{background:var(--ink);color:#aeb6c2;padding:20px 14px;display:flex;flex-direction:column;gap:3px}
+  .brand{display:flex;align-items:center;gap:11px;padding:2px 6px 18px}
+  .bmark{width:34px;height:34px;border-radius:9px;background:linear-gradient(140deg,var(--accent),#16c98a);
+         display:grid;place-items:center;color:#04130d;font-weight:700;font-size:17px;box-shadow:0 4px 14px rgba(14,159,110,.35)}
+  .bname{color:#fff;font-weight:600;font-size:15px}.bsub{color:#7c8696;font-size:12px}
+  .nlabel{color:#5f6a7a;font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:15px 6px 6px}
+  .nitem{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:#aeb6c2;font-size:13.5px;font-weight:500;transition:.35s var(--ease)}
+  .nitem.active{background:#1b2734;color:#fff}
+  .nitem .nb{margin-left:auto;background:var(--accent);color:#04130d;font-size:11px;font-weight:700;border-radius:20px;padding:1px 7px;transition:.3s}
+  .ndot{width:7px;height:7px;border-radius:3px;background:#48566a;transition:.35s}.nitem.active .ndot{background:var(--accent)}
+
+  /* ---------- main ---------- */
+  .main{display:flex;flex-direction:column;min-width:0}
+  .top{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--surface)}
+  .ws{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+  .wsdot{width:22px;height:22px;border-radius:6px;background:linear-gradient(140deg,var(--accent),#16c98a);display:grid;place-items:center;color:#04130d;font-weight:700;font-size:12px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:20px;background:var(--accent-wash);color:var(--accent-deep)}
+  .pill .lv{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(14,159,110,.5)}70%{box-shadow:0 0 0 7px rgba(14,159,110,0)}100%{box-shadow:0 0 0 0 rgba(14,159,110,0)}}
+  .spacer{flex:1}
+  .ro{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+
+  .view{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+  .screen{position:absolute;inset:0;padding:22px;opacity:0;transform:translateY(14px);transition:opacity .55s var(--ease),transform .55s var(--ease);pointer-events:none;overflow:auto}
+  .screen.on{opacity:1;transform:none;pointer-events:auto}
+  .vhead{font-size:19px;font-weight:650;letter-spacing:-.01em}
+  .vsub{color:var(--muted);font-size:13px;margin-top:2px}
+
+  /* ===== ACT 1 — connectors + brain ===== */
+  .c1{display:grid;grid-template-columns:300px 1fr;gap:18px;margin-top:16px;height:calc(100% - 60px)}
+  .conns{display:flex;flex-direction:column;gap:10px}
+  .conn{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 13px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow);transition:.4s var(--ease)}
+  .conn.live{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+  .cic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;flex:none}
+  .cmeta{min-width:0}.cname{font-weight:600;font-size:13.5px}.cstat{font-size:12px;color:var(--faint)}
+  .conn.live .cstat{color:var(--accent-deep)}
+  .switch{margin-left:auto;width:38px;height:22px;border-radius:20px;background:#cdd3da;position:relative;flex:none;transition:.35s var(--ease)}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:.35s var(--ease)}
+  .switch.on{background:var(--accent)}.switch.on::after{transform:translateX(16px)}
+
+  .brain{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .bhead{display:flex;align-items:center;gap:9px;padding:12px 15px;border-bottom:1px solid var(--line-soft)}
+  .bttl{font-weight:600;font-size:13.5px}.bcount{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--accent-deep);background:var(--accent-wash);padding:3px 9px;border-radius:6px}
+  .graph{flex:1;position:relative}
+  .graph svg{position:absolute;inset:0;width:100%;height:100%}
+  .node{position:absolute;border-radius:50%;transform:translate(-50%,-50%) scale(0);opacity:0;transition:transform .5s var(--ease),opacity .4s}
+  .node.in{transform:translate(-50%,-50%) scale(1);opacity:1}
+  .node.core{width:54px;height:54px;background:linear-gradient(140deg,var(--accent),#16c98a);box-shadow:0 6px 20px rgba(14,159,110,.4);display:grid;place-items:center;color:#04130d;font-weight:700;font-size:12px;z-index:3}
+  .edge{stroke:#cfe7dc;stroke-width:1.4;opacity:0;transition:opacity .5s}
+  .edge.in{opacity:1}
+
+  /* ===== ACT 2/3 — unified enquiries ===== */
+  .inbox{display:flex;flex-direction:column;gap:12px;margin-top:16px;max-width:760px}
+  .enq{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;
+       opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+  .enq.in{opacity:1;transform:none}
+  .enq.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+  .ehead{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--line-soft)}
+  .chip{font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:5px}
+  .chip.wa{color:#0a7a3f;background:#e3f7ea}.chip.gm{color:#b23227;background:#fceae8}
+  .efrom{font-weight:600;font-size:13.5px}.ewhen{margin-left:auto;color:var(--faint);font-size:12px}
+  .ebody{padding:13px 15px}
+  .eq{color:var(--muted);font-size:13px;background:var(--line-soft);border-radius:10px;padding:10px 12px}
+  .drow{margin-top:13px;opacity:0;max-height:0;overflow:hidden;transition:opacity .4s,max-height .5s var(--ease)}
+  .drow.open{opacity:1;max-height:240px}
+  .dlabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin-bottom:6px;display:flex;align-items:center;gap:7px}
+  .draft{font-size:14px;line-height:1.55}
+  .cursor{display:inline-block;width:7px;height:15px;background:var(--accent);margin-left:1px;vertical-align:-2px;animation:bl .8s steps(1) infinite}
+  @keyframes bl{50%{opacity:0}}
+  .efoot{display:flex;align-items:center;gap:10px;padding:12px 15px;border-top:1px solid var(--line-soft);background:#fcfdfe;
+         opacity:0;max-height:0;overflow:hidden;transition:opacity .4s,max-height .45s var(--ease)}
+  .efoot.open{opacity:1;max-height:70px}
+  .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;font-weight:550;padding:8px 13px;border-radius:9px;display:inline-flex;align-items:center;gap:7px;transition:.2s}
+  .btn.ghost{color:var(--muted)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(14,159,110,.3)}
+  .btn.sent{background:#eef6f2;border-color:#cfe7dc;color:var(--accent-deep);box-shadow:none}
+  .grew{margin-left:auto;font-size:12px;color:var(--faint)}
+
+  /* end stat strip */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px;opacity:0;transform:translateY(10px);transition:.6s var(--ease)}
+  .stats.in{opacity:1;transform:none}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow)}
+  .snum{font-size:22px;font-weight:680;letter-spacing:-.02em}.slbl{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* caption chip */
+  .cap{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:65;background:rgba(15,23,34,.88);color:#fff;
+       font-size:12.5px;padding:9px 16px;border-radius:30px;backdrop-filter:blur(6px);box-shadow:0 6px 20px rgba(0,0,0,.25);
+       display:flex;align-items:center;gap:9px;white-space:nowrap;transition:opacity .4s}
+  .cap b{color:#7ff0bd;font-weight:600}
+  /* staggered word reveal */
+  .rv{opacity:0;transform:translateY(6px);display:inline-block;animation:rvin .5s var(--ease) forwards}
+  @keyframes rvin{to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="rail"><i id="rail"></i></div>
+  <button class="replay" id="replay">↻ Replay</button>
+
+  <aside class="side">
+    <div class="brand"><div class="bmark">J</div><div><div class="bname">Studio Brain</div><div class="bsub">JAB Design</div></div></div>
+    <div class="nlabel">Workspace</div>
+    <div class="nitem" data-nav="dashboard"><span class="ndot"></span>Dashboard</div>
+    <div class="nitem" data-nav="knowledge"><span class="ndot"></span>Knowledge base</div>
+    <div class="nitem" data-nav="connectors"><span class="ndot"></span>Connectors</div>
+    <div class="nlabel">Automation</div>
+    <div class="nitem" data-nav="agents"><span class="ndot"></span>Agents</div>
+    <div class="nitem" data-nav="approvals"><span class="ndot"></span>Approvals<span class="nb" id="badge">0</span></div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div class="ws"><span class="wsdot">J</span>JAB Design</div>
+      <span class="pill"><span class="lv"></span><span id="syncpill">Brain syncing…</span></span>
+      <div class="spacer"></div>
+      <div class="ro">🛡 Read-only &amp; approved</div>
+    </header>
+
+    <div class="view">
+      <!-- ACT 1: connectors -->
+      <section class="screen" id="s-conn">
+        <div class="vhead">Connectors</div>
+        <div class="vsub">Switch on a tool — everything it knows flows into your brain.</div>
+        <div class="c1">
+          <div class="conns" id="conns"></div>
+          <div class="brain">
+            <div class="bhead"><span class="bttl">🧠 JAB brand brain</span><span class="bcount" id="bcount">0 nodes</span></div>
+            <div class="graph" id="graph"><svg id="edges"></svg></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ACT 2/3: unified approvals -->
+      <section class="screen" id="s-appr">
+        <div class="vhead">Approvals</div>
+        <div class="vsub">Enquiries from every channel land here. Your agent drafts — you approve.</div>
+        <div class="inbox" id="inbox"></div>
+        <div class="stats" id="stats">
+          <div class="stat"><div class="snum" id="st1">2</div><div class="slbl">channels unified</div></div>
+          <div class="stat"><div class="snum" id="st2">2</div><div class="slbl">on-brand replies</div></div>
+          <div class="stat"><div class="snum" id="st3">588</div><div class="slbl">brain nodes used</div></div>
+          <div class="stat"><div class="snum">100%</div><div class="slbl">approved by you</div></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="cap" id="cap"></div>
+</div>
+
+<script>
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const $=id=>document.getElementById(id);
+const rand=(a,b)=>a+Math.random()*(b-a);
+function setRail(p){$('rail').style.width=p+'%';}
+function nav(id){document.querySelectorAll('.nitem').forEach(n=>n.classList.toggle('active',n.dataset.nav===id));}
+function show(scr){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(scr).classList.add('on');}
+function cap(html){const c=$('cap');c.style.opacity=0;setTimeout(()=>{
+  c.innerHTML=html.split(' ').map((w,i)=>`<span class="rv" style="animation-delay:${i*45}ms">${w}</span>`).join(' ');
+  c.style.opacity=1;},240);}
+
+/* ---------- connectors data ---------- */
+const CONNS=[
+  {id:'whatsapp',name:'WhatsApp Business',ic:'WA',color:'#22c35e',nodes:312,stat:'312 chats'},
+  {id:'gmail',name:'Gmail',ic:'GM',color:'#ea4335',nodes:276,stat:'276 threads'},
+  {id:'drive',name:'Google Drive',ic:'DR',color:'#2f6fed',nodes:0,stat:'brand decks & PDFs'},
+  {id:'calendar',name:'Calendar',ic:'CA',color:'#6d54d6',nodes:0,stat:'consults & bookings'},
+];
+function renderConns(){
+  $('conns').innerHTML=CONNS.map(c=>`
+    <div class="conn" data-c="${c.id}">
+      <div class="cic" style="background:${c.color}">${c.ic}</div>
+      <div class="cmeta"><div class="cname">${c.name}</div><div class="cstat" data-s>Not connected</div></div>
+      <div class="switch" data-sw></div>
+    </div>`).join('');
+}
+
+/* ---------- brain graph ---------- */
+let nodeCount=0;
+function placeCore(){
+  const g=$('graph');const core=document.createElement('div');core.className='node core';
+  core.style.left='50%';core.style.top='50%';core.textContent='JAB';g.appendChild(core);
+  requestAnimationFrame(()=>core.classList.add('in'));
+}
+async function burst(color,n){
+  const g=$('graph'),svg=$('edges');const W=g.clientWidth,H=g.clientHeight;
+  for(let i=0;i<n;i++){
+    const ang=rand(0,Math.PI*2),r=rand(60,Math.min(W,H)/2-22);
+    const x=W/2+Math.cos(ang)*r,y=H/2+Math.sin(ang)*r;
+    const d=document.createElement('div');d.className='node';
+    const sz=rand(7,15);d.style.width=sz+'px';d.style.height=sz+'px';
+    d.style.left=x+'px';d.style.top=y+'px';d.style.background=color;d.style.boxShadow=`0 2px 8px ${color}55`;
+    g.appendChild(d);
+    const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1',W/2);ln.setAttribute('y1',H/2);ln.setAttribute('x2',x);ln.setAttribute('y2',y);
+    ln.setAttribute('class','edge');svg.appendChild(ln);
+    setTimeout(()=>{d.classList.add('in');ln.classList.add('in');},i*70);
+  }
+}
+async function activate(id){
+  const c=CONNS.find(x=>x.id===id);const card=document.querySelector(`[data-c="${id}"]`);
+  const sw=card.querySelector('[data-sw]'),st=card.querySelector('[data-s]');
+  sw.classList.add('on');st.textContent='Connecting…';
+  await sleep(700);
+  card.classList.add('live');st.textContent='Active · '+c.stat;
+  const add=c.nodes||rand(40,70)|0;
+  await burst(c.color, Math.min(26, Math.round(add/14)+6));
+  // ticking counter
+  const to=nodeCount+add;const step=Math.ceil(add/22);
+  const t=setInterval(()=>{nodeCount=Math.min(to,nodeCount+step);$('bcount').textContent=nodeCount+' nodes';
+    if(nodeCount>=to){clearInterval(t);}},45);
+  await sleep(1100);
+}
+
+/* ---------- enquiries ---------- */
+const ENQS=[
+  {id:'rachel',ch:'wa',chName:'WhatsApp',from:'Rachel · Bloom Café',when:'2m ago',
+   q:"Hi! love your SG50 work 🙌 we're opening our 2nd café and the branding feels dated. do you do a refresh + new packaging? rough cost?",
+   reply:"hey Rachel, congrats on café number two 🥊 a refresh with packaging sits right in our corner. rough guide it runs around 6–8 weeks and scales with scope. easiest is a quick 15-min consult so we can see the space — want me to set one up?",
+   sentVia:'WhatsApp'},
+  {id:'james',ch:'gm',chName:'Gmail',from:'James · Vertex Property',when:'just now',
+   q:"We have a condo launch in October and need a full campaign + microsite. Can JAB take this on, and what's the process?",
+   reply:"Hi James — a launch like this is exactly what we're built for: brand, collaterals and microsite all pulling in one direction. We'd lock the story first, then build outward, working the schedule back from your October date. Happy to walk you through it on a call this week.",
+   sentVia:'Gmail'},
+];
+function renderInbox(){
+  $('inbox').innerHTML=ENQS.map(e=>`
+   <div class="enq" data-e="${e.id}">
+     <div class="ehead">
+       <span class="chip ${e.ch}">${e.ch==='wa'?'● WhatsApp':'● Gmail'}</span>
+       <span class="efrom">${e.from}</span><span class="ewhen">${e.when}</span>
+     </div>
+     <div class="ebody">
+       <div class="eq">${e.q}</div>
+       <div class="drow" data-draft>
+         <div class="dlabel">✍️ Drafted in JAB's voice <span style="color:var(--accent)">· grounded in brain</span></div>
+         <div class="draft" data-dtext></div>
+       </div>
+     </div>
+     <div class="efoot" data-foot>
+       <button class="btn ghost">Edit</button>
+       <button class="btn primary" data-approve>Approve &amp; send</button>
+       <span class="grew" data-grew></span>
+     </div>
+   </div>`).join('');
+}
+async function typeDraft(el,text){el.innerHTML='';let s='';for(let i=0;i<text.length;i++){s+=text[i];el.innerHTML=s+'<span class="cursor"></span>';await sleep(11+Math.random()*15);}el.textContent=text;}
+
+async function handleEnq(e){
+  const card=document.querySelector(`[data-e="${e.id}"]`);
+  card.classList.add('active');card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  const draft=card.querySelector('[data-draft]'),dtext=card.querySelector('[data-dtext]');
+  const foot=card.querySelector('[data-foot]'),grew=card.querySelector('[data-grew]'),btn=card.querySelector('[data-approve]');
+  cap(`Agent reads the brain and drafts a reply for <b>${e.from.split(' · ')[0]}</b>`);
+  grew.textContent='reading brand brain…';
+  draft.classList.add('open');await sleep(500);
+  foot.classList.add('open');
+  await typeDraft(dtext,e.reply);
+  grew.textContent='grounded in 588 nodes';
+  cap('Reply ready — <b>one click to approve</b>');
+  await sleep(950);
+  btn.style.transform='scale(.97)';btn.textContent='Sending…';await sleep(700);
+  btn.style.transform='';btn.className='btn sent';btn.innerHTML='✓ Sent via '+e.sentVia;
+  card.classList.remove('active');
+  cap(`<b>Sent on ${e.sentVia}</b> — on-brand, approved by you`);
+  await sleep(1300);
+}
+
+/* ---------- run ---------- */
+function reset(){
+  nodeCount=0;renderConns();renderInbox();$('graph').querySelectorAll('.node').forEach(n=>n.remove());
+  $('edges').innerHTML='';$('bcount').textContent='0 nodes';$('badge').textContent='0';
+  $('stats').classList.remove('in');$('replay').classList.remove('show');setRail(0);$('syncpill').textContent='Brain syncing…';
+}
+async function run(){
+  reset();placeCore();
+  // ACT 1
+  nav('connectors');show('s-conn');setRail(6);
+  cap('Connect your tools — <b>everything pours into one brain</b>');
+  await sleep(900);
+  await activate('whatsapp');setRail(22);
+  await activate('gmail');setRail(40);
+  await activate('drive');setRail(52);
+  $('syncpill').textContent='Brain synced';
+  cap('<b>One brain</b> — every chat, email and file, indexed and searchable');
+  await sleep(1400);
+
+  // ACT 2 — enquiries arrive
+  nav('approvals');show('s-appr');setRail(58);
+  cap('Now enquiries arrive — <b>from every channel, into one place</b>');
+  const cards=[...document.querySelectorAll('.enq')];
+  cards[0].classList.add('in');$('badge').textContent='1';await sleep(1100);
+  cards[1].classList.add('in');$('badge').textContent='2';await sleep(1300);
+  setRail(66);
+
+  // ACT 3 — draft, approve, send each
+  await handleEnq(ENQS[0]);$('badge').textContent='1';setRail(82);
+  await handleEnq(ENQS[1]);$('badge').textContent='0';setRail(96);
+
+  // stats
+  $('stats').classList.add('in');setRail(100);
+  cap('Tools → brain → on-brand replies — <b>you approve every word</b>');
+  await sleep(2600);
+  $('replay').classList.add('show');await sleep(1600);run();
+}
+$('replay').addEventListener('click',()=>{$('replay').classList.remove('show');run();});
+run();
+</script>
+</body>
+</html>
