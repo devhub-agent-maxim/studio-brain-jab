@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Studio Brain — live agent demo</title>
+<style>
+  :root{ --wa-bg:#0b141a; --wa-head:#202c33; --wa-in:#202c33; --wa-out:#005c4b; --txt:#e9edef; --mut:#8696a0; --tick:#53bdeb; --accent:#22c35e; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0a0a0c;color:var(--txt);font:15px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,Helvetica,Arial;display:flex;flex-direction:column;align-items:center;min-height:100vh;gap:14px;padding:20px 10px}
+  .cap{color:#9aa7b2;font-size:13px;text-align:center;max-width:380px}
+  .cap b{color:#fff}
+  .phone{width:380px;max-width:96vw;height:720px;background:var(--wa-bg);border-radius:30px;border:10px solid #1b1b1f;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative}
+  .head{background:var(--wa-head);display:flex;align-items:center;gap:10px;padding:12px 14px}
+  .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#22c35e,#0a7);display:flex;align-items:center;justify-content:center;font-weight:800;color:#04210d}
+  .head .nm{font-weight:600;font-size:15px}
+  .head .st{color:var(--accent);font-size:12px}
+  .head .ch{margin-left:auto;font-size:11px;color:var(--mut);border:1px solid #2a3942;border-radius:20px;padding:3px 8px}
+  .chat{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px;background-image:linear-gradient(rgba(11,20,26,.96),rgba(11,20,26,.96))}
+  .row{display:flex}
+  .row.out{justify-content:flex-end}
+  .bub{max-width:78%;padding:7px 10px 5px;border-radius:10px;font-size:14.5px;white-space:pre-wrap;position:relative;animation:pop .25s ease}
+  .in .bub{background:var(--wa-in);border-top-left-radius:3px}
+  .out .bub{background:var(--wa-out);border-top-right-radius:3px}
+  .meta{display:block;text-align:right;font-size:10.5px;color:var(--mut);margin-top:2px}
+  .tick{color:var(--tick)}
+  @keyframes pop{from{transform:translateY(8px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+  .pill{align-self:center;background:#182a22;color:#9fe7be;font-size:11.5px;padding:4px 11px;border-radius:20px;border:1px solid #224733;animation:pop .25s}
+  .typing{display:inline-flex;gap:3px;align-items:center}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--mut);animation:bl 1s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+  @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  .agentbar{background:#111b15;border-top:1px solid #1f3a2a;padding:8px 12px;font-size:12px;color:#9fe7be;display:flex;align-items:center;gap:8px;min-height:36px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+</style>
+</head>
+<body>
+  <div class="cap"><b>Studio Brain</b> — an enquiry comes in on WhatsApp, the agent reads JAB's brain and replies in seconds. You approve before it sends.</div>
+  <div class="phone">
+    <div class="head">
+      <div class="av">JB</div>
+      <div><div class="nm" id="who">JAB Design</div><div class="st" id="status">Studio Brain · online</div></div>
+      <div class="ch" id="chan">WhatsApp</div>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="agentbar"><span class="dot"></span><span id="agent">Studio Brain agent active</span></div>
+  </div>
+
+<script>
+const SCENARIOS = [
+ { who:"Rachel · new enquiry", chan:"WhatsApp",
+   incoming:"Hi! love your SG50 work 🙌 we're opening our 2nd cafe and the branding feels dated. do you do a refresh + new packaging? rough cost?",
+   reply:"hey Rachel, congrats on cafe number two 🥊 a refresh with packaging sits right in our corner. rough guide it usually runs around 6 to 8 weeks and scales with scope. easiest is a quick 15-min consult so we can see the space. want me to set one up?" },
+ { who:"James · Vertex Property", chan:"WhatsApp",
+   incoming:"We have a condo launch in October, need a full campaign + microsite. can JAB take this on?",
+   reply:"hi James, a launch like this is exactly what we're built for, brand, collaterals and microsite pulling in one direction. we'd lock the story first then build outward, working the schedule backward from your October date. happy to walk you through it on a call this week." },
+ { who:"Priya · existing client", chan:"WhatsApp",
+   incoming:"morning! the deck looks amazing 🙏 quick one, can we get the logo in white for dark backgrounds?",
+   reply:"morning Priya! so glad it landed 🙏 sending the white version for dark backgrounds over now. shout if you need any other formats." },
+];
+
+const chat=document.getElementById('chat'), agent=document.getElementById('agent');
+const who=document.getElementById('who'), chan=document.getElementById('chan'), status=document.getElementById('status');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function now(){const d=new Date();return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');}
+function add(side,html){const r=document.createElement('div');r.className='row '+side;r.innerHTML='<div class="bub">'+html+'</div>';chat.appendChild(r);chat.scrollTop=chat.scrollHeight;return r;}
+function pill(t){const p=document.createElement('div');p.className='pill';p.textContent=t;chat.appendChild(p);chat.scrollTop=chat.scrollHeight;}
+async function typeOut(bub,text){bub.querySelector('.bub').innerHTML='';const el=bub.querySelector('.bub');for(let i=0;i<text.length;i++){el.textContent+=text[i];chat.scrollTop=chat.scrollHeight;await sleep(12+Math.random()*22);}el.innerHTML=el.textContent+'<span class="meta">'+now()+' <span class="tick">✓✓</span></span>';}
+
+async function run(){
+  while(true){
+   for(const s of SCENARIOS){
+     chat.innerHTML=''; who.textContent='JAB Design'; chan.textContent=s.chan;
+     // incoming
+     status.textContent=s.who;
+     const t=add('in','<span class="typing"><i></i><i></i><i></i></span>'); await sleep(1100);
+     t.querySelector('.bub').innerHTML=s.incoming+'<span class="meta">'+now()+'</span>'; await sleep(900);
+     // agent routing
+     agent.textContent='⚡ enquiry received — routing to Studio Brain';
+     await sleep(900);
+     agent.textContent='🧠 reading JAB\\'s brand voice + past work';
+     await sleep(1100);
+     agent.textContent='✍️ drafting reply…';
+     pill('Studio Brain drafted a reply · waiting for your approval');
+     await sleep(700);
+     // reply types out
+     const out=add('out','<span class="typing"><i></i><i></i><i></i></span>'); await sleep(700);
+     await typeOut(out,s.reply);
+     agent.textContent='✅ approved by you → sent on '+s.chan;
+     await sleep(2600);
+   }
+  }
+}
+run();
+</script>
+</body>
+</html>
